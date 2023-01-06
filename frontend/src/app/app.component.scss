@@ -1,0 +1,29 @@
+$navbar-font-size: 1.25rem;
+$navbar-color: white;
+$navbar-bg-color: #343a40;
+$navbar-link-hover-color: #495057;
+
+.navbar {
+  font-size: $navbar-font-size;
+  color: $navbar-color;
+  background-color: $navbar-bg-color;
+  a.nav-link {
+    color: $navbar-color;
+    &:hover {
+      color: rgb(2, 112, 255);
+    }
+  }
+}
+.footer{
+  width: 100%;
+  height: 100%;
+  margin-top: 20px;
+  background-color: #343a40;
+  .contact{
+    color:white;
+    text-align: center;
+  }
+  .contact p{
+    margin: auto;
+  }
+}

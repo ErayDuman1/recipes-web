@@ -1,0 +1,158 @@
+const db = require("../models");
+require('dotenv').config()
+const mailgun=require("mailgun-js")
+const _ =require("lodash")
+var generator = require('generate-password');
+var jwt = require("jsonwebtoken");
+var bcrypt = require("bcryptjs");
+const User = db.user;
+const Role = db.role;
+const { user } = require("../models");
+const DOMAIN="sandbox95b46cc464f94c0ba26047dd1277a7cd.mailgun.org"
+const MAILGUN_APIKEY="1f5c04e96122880c8ff426ccf2ac6fd5-cc9b2d04-21e997ab"
+const mg=mailgun({apiKey:MAILGUN_APIKEY,domain:DOMAIN});
+
+exports.signup = (req, res) => {
+  const user = new User({
+    username: req.body.username,
+    email: req.body.email,
+    password: bcrypt.hashSync(req.body.password, 8)
+  });
+
+  user.save((err, user) => {
+    if (err) {
+      res.status(500).send({ message: err });
+      return;
+    }
+
+    if (req.body.roles) {
+      Role.find(
+        {
+          name: { $in: req.body.roles }
+        },
+        (err, roles) => {
+          if (err) {
+            res.status(500).send({ message: err });
+            return;
+          }
+
+          user.roles = roles.map(role => role._id);
+          user.save(err => {
+            if (err) {
+              res.status(500).send({ message: err });
+              return;
+            }
+
+            res.send({ message: "User was registered successfully!" });
+          });
+        }
+      );
+    } else {
+      Role.findOne({ name: "user" }, (err, role) => {
+        if (err) {
+          res.status(500).send({ message: err });
+          return;
+        }
+
+        user.roles = [role._id];
+        user.save(err => {
+          if (err) {
+            res.status(500).send({ message: err });
+            return;
+          }
+
+          res.send({ message: "User was registered successfully!" });
+        });
+      });
+    }
+  });
+};
+
+exports.signin = (req, res) => {
+  User.findOne({
+    username: req.body.username
+  })
+    .populate("roles", "-__v")
+    .exec((err, user) => {
+      if (err) {
+        res.status(500).send({ message: err });
+        return;
+      }
+
+      if (!user) {
+        return res.status(404).send({ message: "User Not found." });
+      }
+
+      var passwordIsValid = bcrypt.compareSync(
+        req.body.password,
+        user.password
+      );
+
+      if (!passwordIsValid) {
+        return res.status(401).send({
+          accessToken: null,
+          message: "Invalid Password!"
+        });
+      }
+
+      const token = jwt.sign({ id: user.id }, process.env.SECRET, {
+        expiresIn: 86400 // 24 hours
+      });
+
+      var authorities = [];
+
+      for (let i = 0; i < user.roles.length; i++) {
+        authorities.push("ROLE_"+user.roles[i].name.toUpperCase());
+      }
+      res.status(200).send({
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        roles: authorities,
+        accessToken: token
+        
+      });
+    });
+};
+
+exports.forgotPassword=(req,res)=>{
+  const{email}=req.body;
+
+  user.findOne({email},(err,user)=>{
+    if(err || !user){
+      return res.status(400).json({error:"User with this email does not exists"})
+    }
+    var password = generator.generate({
+      length: 10,
+      numbers: true
+    });
+    const data={
+      from:'noreply@hello.com',
+      to:email,
+      subject:'Account Password reset ',
+      html:`<h2>Your account reset password</h2>
+      <p>New Password:${password}</p>
+      `     
+    };
+    return user.updateOne({password:bcrypt.hashSync(password, 8)},function (err,success){
+      if(err){
+        return res.status(400).json({error:"reset password error"});
+      }
+      else{
+        mg.messages().send(data,function(error,body){
+          if(error){
+            return res.json({
+              error:"error"
+            })
+          }
+          return res.json({message:"Email has been sent,kindly follow the instructions"});
+        });
+
+      }
+
+    })
+
+  })
+}
+
+

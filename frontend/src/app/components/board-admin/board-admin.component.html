@@ -1,0 +1,24 @@
+<div class="container">
+  <table class="table table-bordered table-dark">
+    <thead>
+      <tr>
+        <th scope="col">UserName</th>
+        <th scope="col">Email</th>
+        <th scope="col">Password</th>
+        <th scope="col">User</th>
+        <th scope="col">Admin</th>
+      </tr>
+    </thead>
+    <tbody *ngFor="let user of users">
+      <tr>
+        <td>{{ user.username }}</td>
+        <td>{{ user.email }}</td>
+        <td>{{ user.password }}</td>
+        <td *ngFor="let role of user.roles">
+          <div *ngIf="role === '63adf6b6819a93b07875615f'" class="role">✓</div>
+          <div *ngIf="role === '63adf6b6819a93b07875615e'" class="role">✓</div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
